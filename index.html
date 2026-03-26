@@ -56,8 +56,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg0);color:var(--
 .ftr{text-align:center;padding:20px;font-size:10px;color:var(--t3);border-top:1px solid var(--brd);margin-top:32px}
 .form-dots{display:flex;gap:3px;justify-content:center;margin-top:4px}
 .form-dot{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff}
-.streak-card{background:var(--bg2);border:1px solid var(--brd);border-radius:10px;padding:10px;cursor:pointer;min-width:180px;max-width:300px;flex:0 0 auto;transition:all 0.2s}
+.streak-card{background:var(--bg2);border:1px solid var(--brd);border-radius:10px;cursor:pointer;min-width:200px;max-width:320px;flex:0 0 auto;transition:all 0.2s;overflow:hidden}
 .streak-card:hover{border-color:var(--acc2)}
+.streak-inner{display:flex;align-items:stretch;min-height:80px}
+.streak-photo{width:70px;flex-shrink:0;position:relative;overflow:hidden}
+.streak-photo img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.streak-info{flex:1;padding:8px 10px;display:flex;flex-direction:column;justify-content:center}
+.alt-slider-wrap{margin-top:8px;padding:8px 14px;background:var(--bg1);border:1px solid var(--brd);border-radius:8px}
+.alt-slider-title{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.alt-slider-track{position:relative;height:6px;background:rgba(255,255,255,.08);border-radius:3px;margin:12px 0 8px;cursor:pointer}
+.alt-slider-fill{position:absolute;top:0;left:0;height:100%;background:var(--acc);border-radius:3px;transition:width .2s}
+.alt-slider-thumb{position:absolute;top:50%;width:14px;height:14px;background:var(--acc);border-radius:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 0 6px rgba(0,212,160,.4);transition:left .1s}
+.alt-slider-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t3)}
+.alt-slider-odds{display:flex;justify-content:space-between;margin-top:4px;font-size:10px}
+.alt-slider-odds .alt-fav{color:var(--acc);font-weight:700}
+.alt-slider-odds .alt-und{color:var(--t1);font-weight:700}
+.alt-slider-center{text-align:center;font-size:13px;font-weight:800;color:var(--acc);margin:4px 0}
 .odds-row{display:flex;justify-content:center;gap:16px;margin-bottom:12px;font-size:11px;color:var(--t2);flex-wrap:wrap;align-items:center}
 .odds-row .od-item{display:flex;align-items:center;gap:4px}
 .odds-row .od-val{font-weight:700;color:var(--acc)}
@@ -213,6 +227,48 @@ function computeTeamStats(team, games, line, ptsLine, qMode, teamIsFav) {
   };
 }
 
+function OddsSlider({items, label, favTeam, undTeam, favStyle, undStyle, currentVal}) {
+  const [idx, setIdx] = useState(() => {
+    if (!items.length) return 0;
+    const ci = items.findIndex(it => it.point === currentVal);
+    return ci >= 0 ? ci : Math.floor(items.length / 2);
+  });
+  if (!items.length) return null;
+  const item = items[idx] || items[0];
+  const pct = items.length > 1 ? (idx / (items.length - 1)) * 100 : 50;
+  const favAbbr = ABBREV[favTeam] || favTeam;
+  const undAbbr = ABBREV[undTeam] || undTeam;
+  const isSpread = label === 'spread';
+  const leftPrice = isSpread ? item.favPrice : item.overPrice;
+  const leftBookie = isSpread ? item.favBookie : item.overBookie;
+  const rightPrice = isSpread ? item.undPrice : item.underPrice;
+  const rightBookie = isSpread ? item.undBookie : item.underBookie;
+  const handleClick = (e) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const newIdx = Math.round((x / rect.width) * (items.length - 1));
+    setIdx(Math.max(0, Math.min(items.length - 1, newIdx)));
+  };
+  return (
+    <div className="alt-slider-wrap" onClick={e => e.stopPropagation()}>
+      <div className="alt-slider-odds">
+        {leftPrice != null ? <span className="alt-fav">{isSpread ? '' : 'O'} ${leftPrice?.toFixed(2)} <span style={{fontSize:8,color:'var(--t3)'}}>({leftBookie})</span></span> : <span/>}
+        {rightPrice != null ? <span className="alt-und">{isSpread ? '' : 'U'} ${rightPrice?.toFixed(2)} <span style={{fontSize:8,color:'var(--t3)'}}>({rightBookie})</span></span> : <span/>}
+      </div>
+      <div className="alt-slider-center">{isSpread ? `${favAbbr} -${item.point}` : item.point}</div>
+      <div className="alt-slider-track" onClick={handleClick}>
+        <div className="alt-slider-fill" style={{width: pct + '%'}} />
+        <div className="alt-slider-thumb" style={{left: pct + '%'}} />
+      </div>
+      <div className="alt-slider-labels">
+        <span>{items[0].point}</span>
+        <span>{items[items.length - 1].point}</span>
+      </div>
+    </div>
+  );
+}
+
 function StatRow({label, valA, valB, suffix="", isCount=false, inverse=false}) {
   const nA=parseFloat(valA)||0, nB=parseFloat(valB)||0;
   const max=Math.max(nA,nB,0.1);
@@ -311,11 +367,14 @@ function Streaks({game, oddsData, mainTab}) {
         return{scored:sc,conc:co,margin:sc-co,tp:sc+co,isWin:sc>co,isLoss:sc<co,isFav:g.fav===team};
       }
       const allR=tg.map(g=>({...g,...tr(g)}));
+      // Determine if this team is favourite in THIS game
+      const teamIsFavThisGame = oddsData && oddsData.fav === team;
+      const teamIsUndThisGame = oddsData && oddsData.und === team;
       const ctxs=[
         {label:'All Games',games:allR},
         {label:'H2H',games:sortD(D.results.filter(r=>(r.t1===tA&&r.t2===tB)||(r.t1===tB&&r.t2===tA))).map(g=>({...g,...tr(g)}))},
-        {label:'As Favourite',games:allR.filter(g=>g.isFav)},
-        {label:'As Underdog',games:allR.filter(g=>!g.isFav&&g.fav)},
+        ...(teamIsFavThisGame?[{label:'As Favourite',games:allR.filter(g=>g.isFav)}]:[]),
+        ...(teamIsUndThisGame?[{label:'As Underdog',games:allR.filter(g=>!g.isFav&&g.fav)}]:[]),
         ...(venUp?[{label:'At '+game.venueShort,games:tg.filter(r=>r.v&&r.v.toUpperCase()===venUp).map(g=>({...g,...tr(g)}))}]:[]),
       ];
       ctxs.forEach(ctx=>{
@@ -450,23 +509,35 @@ function Streaks({game, oddsData, mainTab}) {
     const ts = TEAM_STYLES[s.teamKey] || {};
     return (
       <div key={idx} onClick={()=>togExp(idx)} className={"streak-card"+(isE?" exp":"")} style={{borderColor:isE?s.color:undefined}}>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          <span style={{fontSize:14}}>{'\u{1F525}'}{s.streak}</span>
-          {isPlayer ? (
-            <span style={{fontSize:12,fontWeight:700,display:'flex',alignItems:'center',gap:6}}>
-              {D.photos[s.player] && <img src={D.photos[s.player]} alt="" style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',border:`2px solid ${ts.bg||'var(--brd)'}`}} />}
-              <span style={{display:'flex',flexDirection:'column',gap:1}}>
-                <span style={{color:'white'}}>{s.player}</span>
-                <span style={{background:ts.bg,color:ts.txt,padding:'1px 5px',borderRadius:4,fontSize:9,fontWeight:700,alignSelf:'flex-start'}}>{ABBREV[s.teamKey]||s.teamKey}</span>
-              </span>
-            </span>
-          ) : (
-            <span style={{background:ts.bg,color:ts.txt,padding:'2px 8px',borderRadius:5,fontSize:12,fontWeight:700}}>{s.team}</span>
-          )}
-        </div>
-        <div style={{fontSize:11,color:'var(--t2)',marginTop:3}}>
-          {s.desc}
-          {isPlayer && s.odds && s.odds[0] && <span style={{color:'var(--acc)',marginLeft:6,fontSize:10}}>${s.odds[0].price.toFixed(2)} ({s.odds[0].bookie})</span>}
+        <div className="streak-inner">
+          {isPlayer && D.photos[s.player] ? (
+            <div className="streak-photo" style={{background:ts.bg}}>
+              <img src={D.photos[s.player]} alt="" />
+            </div>
+          ) : !isPlayer && D.logos[s.teamKey] ? (
+            <div className="streak-photo" style={{background:ts.bg,display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <img src={D.logos[s.teamKey]} alt="" style={{width:'60%',height:'60%',objectFit:'contain',position:'relative'}} />
+            </div>
+          ) : null}
+          <div className="streak-info">
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:14}}>{'\u{1F525}'}{s.streak}</span>
+              {isPlayer ? (
+                <span style={{fontSize:12,fontWeight:700,display:'flex',flexDirection:'column',gap:1}}>
+                  <span style={{color:'white'}}>{s.player}</span>
+                  <span style={{background:ts.bg,color:ts.txt,padding:'1px 5px',borderRadius:4,fontSize:9,fontWeight:700,alignSelf:'flex-start'}}>{ABBREV[s.teamKey]||s.teamKey}</span>
+                </span>
+              ) : (
+                <span style={{background:ts.bg,color:ts.txt,padding:'2px 8px',borderRadius:5,fontSize:12,fontWeight:700}}>{s.team}</span>
+              )}
+            </div>
+            <div style={{fontSize:11,color:'var(--t2)',marginTop:3}}>{s.desc}</div>
+            {isPlayer && s.odds && s.odds[0] && (
+              <div style={{fontSize:10,color:'var(--acc)',marginTop:2}}>
+                {s.odds.map((o, oi) => <span key={oi}>{oi > 0 ? ', ' : ''}${o.price.toFixed(2)} <span style={{opacity:.7}}>({o.bookie})</span></span>)}
+              </div>
+            )}
+          </div>
         </div>
         {isE && !isPlayer && s.games && (
           <div onClick={e=>e.stopPropagation()} style={{marginTop:8,maxHeight:s.games.length>10?240:undefined,overflowY:s.games.length>10?'auto':'visible'}}>
@@ -565,6 +636,8 @@ function TeamStats({game, oddsData}) {
   const [factors,setFactors]=useState(['all']);
   const [period,setPeriod]=useState('2026');
   const [qMode,setQMode]=useState('total');
+  const [showLineSlider,setShowLineSlider]=useState(false);
+  const [showPtsSlider,setShowPtsSlider]=useState(false);
 
   const toggleFactor=useCallback((f)=>{
     setFactors(prev=>{
@@ -691,8 +764,22 @@ function TeamStats({game, oddsData}) {
           <div className="ts-grid">
             <StatRow label="Games" valA={statsA.games} valB={statsB.games} isCount={true}/>
             <StatRow label="Win %" valA={statsA.winPct} valB={statsB.winPct} suffix="%"/>
-            {line>0&&<StatRow label={`Line Cover % (${line})`} valA={statsA.linePct} valB={statsB.linePct} suffix="%"/>}
-            {ptsLine>0&&<StatRow label={`Points Over % (${ptsLine})`} valA={statsA.ptsPct} valB={statsB.ptsPct} suffix="%"/>}
+            {line>0&&<>
+              <div style={{cursor:'pointer'}} onClick={()=>setShowLineSlider(!showLineSlider)}>
+                <StatRow label={`Line Cover % (${line})`} valA={statsA.linePct} valB={statsB.linePct} suffix="%"/>
+              </div>
+              {showLineSlider && oddsData && oddsData.altSpreads && oddsData.altSpreads.length > 0 && (
+                <OddsSlider items={oddsData.altSpreads} label="spread" favTeam={oddsData.fav} undTeam={oddsData.und} favStyle={hS} undStyle={aS} currentVal={line} />
+              )}
+            </>}
+            {ptsLine>0&&<>
+              <div style={{cursor:'pointer'}} onClick={()=>setShowPtsSlider(!showPtsSlider)}>
+                <StatRow label={`Points Over % (${ptsLine})`} valA={statsA.ptsPct} valB={statsB.ptsPct} suffix="%"/>
+              </div>
+              {showPtsSlider && oddsData && oddsData.altTotals && oddsData.altTotals.length > 0 && (
+                <OddsSlider items={oddsData.altTotals} label="total" favTeam={oddsData.fav} undTeam={oddsData.und} favStyle={hS} undStyle={aS} currentVal={ptsLine} />
+              )}
+            </>}
             {!isQtr && (
               <>
                 <StatRow label="40+ Wins" valA={statsA.w40} valB={statsB.w40} suffix="%"/>
@@ -900,21 +987,25 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
     );
   };
 
+  const singularPos = fullPos ? fullPos.replace(/ves\s*$/i, 'f').replace(/([^f])s\s*$/i, '$1') : '';
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <div className="modal-top" style={{background:ts.bg||'var(--bg2)'}}>
+        <div className="modal-top" style={{background:`linear-gradient(135deg, ${ts.bg||'var(--bg2)'}, ${ts.bg||'var(--bg2)'}88, var(--bg0))`}}>
           <div className="modal-top-photo">
             {photoUrl ? <img src={photoUrl} alt="" /> : <div className="modal-top-photo-ph" style={{background:ts.bg,color:ts.txt}}>#{pl.number}</div>}
           </div>
           <div className="modal-top-info">
             <button className="modal-close-btn" onClick={onClose}>CLOSE &times;</button>
             <div className="modal-name">{pl.name}</div>
-            <div className="modal-team-badge" style={{background:ts.bg,color:ts.txt,border:`1px solid ${ts.txt||'#fff'}33`}}>
-              {D.logos[pl.team] && <img src={D.logos[pl.team]} style={{width:14,height:14}} alt="" />}
-              {teamAbbr}
+            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+              <div className="modal-team-badge" style={{background:ts.bg,color:ts.txt,border:`1px solid ${ts.txt||'#fff'}33`}}>
+                {D.logos[pl.team] && <img src={D.logos[pl.team]} style={{width:14,height:14}} alt="" />}
+                {teamAbbr}
+              </div>
+              <div className="modal-pos" style={{margin:0}}>{singularPos}</div>
             </div>
-            <div className="modal-pos">{fullPos}</div>
             {allOdds.length > 0 && (
               <div className="modal-odds-line">
                 Odds: {allOdds.map((o, i) => <span key={i}>{i > 0 ? ', ' : ''}<b>${o.price.toFixed(2)}</b> {o.bookie}</span>)}
@@ -923,20 +1014,20 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
           </div>
         </div>
 
-        <div className="modal-cards" style={{background:'var(--bg0)'}}>
+        <div className="modal-cards" style={{background:`linear-gradient(135deg, ${ts.bg||'var(--bg0)'}33, var(--bg0))`}}>
           <div className="modal-card" style={{background:'var(--bg2)'}}><div className="modal-card-val">{totalGames}</div><div className="modal-card-lbl">GM</div></div>
           <div className="modal-card" style={{background:'var(--bg2)'}}><div className="modal-card-val">{avgPct}</div><div className="modal-card-lbl">AVG %</div></div>
           <div className="modal-card" style={{background:'var(--bg2)'}}><div className="modal-card-val">{totalGoals}</div><div className="modal-card-lbl">Goals</div></div>
           <div className="modal-card" style={{background:'var(--bg2)'}}><div className="modal-card-val">{avgDisp}</div><div className="modal-card-lbl">Avg Disp</div></div>
           {position && posRank.gr ? (
-            <div className="modal-card" style={{background:rankBg(posRank.gr),border:`1px solid ${rankColor(posRank.gr)}33`}}><div className="modal-card-val" style={{color:rankColor(posRank.gr)}}>#{posRank.gr}</div><div className="modal-card-lbl">{position} vs {oppAbbr}</div></div>
+            <div className="modal-card" style={{background:rankBg(posRank.gr),border:`1px solid ${rankColor(posRank.gr)}33`}}><div className="modal-card-val" style={{color:rankColor(posRank.gr)}}>#{posRank.gr}</div><div className="modal-card-lbl">GLS V {oppAbbr}</div></div>
           ) : null}
           {position && posRank.dr ? (
-            <div className="modal-card" style={{background:rankBg(posRank.dr),border:`1px solid ${rankColor(posRank.dr)}33`}}><div className="modal-card-val" style={{color:rankColor(posRank.dr)}}>#{posRank.dr}</div><div className="modal-card-lbl">Disp Rank</div></div>
+            <div className="modal-card" style={{background:rankBg(posRank.dr),border:`1px solid ${rankColor(posRank.dr)}33`}}><div className="modal-card-val" style={{color:rankColor(posRank.dr)}}>#{posRank.dr}</div><div className="modal-card-lbl">DISP V {oppAbbr}</div></div>
           ) : null}
         </div>
 
-        <div className="modal-filters">
+        <div className="modal-filters" style={{background:`linear-gradient(135deg, ${ts.bg||'var(--bg0)'}22, var(--bg0))`}}>
           <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
             <div className="cl">Period</div>
             <div className="tg" style={{flex:1}}>
@@ -948,7 +1039,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
             </div>
           </div>
           <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginTop:4}}>
-            <div className="cl">Time</div>
+            <div className="cl">Stat</div>
             <div className="tg" style={{flex:1}}>
               <button className={"tb"+(subTab==='goals'?" on":"")} onClick={()=>setSubTab('goals')}>Goals</button>
               <button className={"tb"+(subTab==='disposals'?" on":"")} onClick={()=>setSubTab('disposals')}>Disposals</button>
@@ -959,8 +1050,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
           </div>
         </div>
 
-        <div className="modal-section-title">2026 {pl.name} Heat Map</div>
-        <div className="modal-section-sub">{subTab === 'goals' ? 'Goal' : 'Disposal'} Scoring Profile</div>
+        <div className="modal-section-title" style={{color:'var(--acc)'}}>{subTab === 'goals' ? 'Goal Stats' : 'Disposal Stats'}</div>
 
         <div style={{padding:'0 0 18px'}}>
           {factors.map(f => {
@@ -1000,7 +1090,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
   );
 }
 
-function PlayerStats({game}) {
+function PlayerStats({game, oddsData}) {
   const [subTab, setSubTab] = useState('goals');
   const [factor, setFactor] = useState('all');
   const [period, setPeriod] = useState('last10');
@@ -1278,22 +1368,19 @@ function PlayerStats({game}) {
     <div className="sec">
       <div className="stit">Player Stats</div>
       {!hasTeamList && <div style={{textAlign:'center',fontSize:10,color:'var(--t3)',marginBottom:8,fontStyle:'italic'}}>Team lists not available — showing players from odds markets</div>}
-      <div className="cr">
+      <div className="cr" style={{gap:16}}>
         <div className="cl">Stat</div>
         <div className="tg">
           <button className={"tb" + (subTab === 'goals' ? " on" : "")} onClick={() => setSubTab('goals')}>Goals</button>
           <button className={"tb" + (subTab === 'disposals' ? " on" : "")} onClick={() => setSubTab('disposals')}>Disposals</button>
         </div>
-      </div>
-      <div className="cr">
-        <div className="cl">{subTab === 'goals' ? 'Goals' : 'Disposals'}</div>
         <div className="tg">
           {activeMilestones.map(m => (
             <button key={m} className={"tb" + (milestone === m ? " on" : "")} onClick={() => setMilestone(m)}>{m}+</button>
           ))}
         </div>
       </div>
-      <div className="cr">
+      <div className="cr" style={{gap:16}}>
         <div className="cl">Factor</div>
         <div className="tg">
           <button className={"tb" + (factor === 'all' ? " on" : "")} onClick={() => setFactor('all')}>All</button>
@@ -1302,9 +1389,7 @@ function PlayerStats({game}) {
           <button className={"tb" + (factor === 'wet' ? " on" : "")} onClick={() => setFactor('wet')}>Wet</button>
           <button className={"tb" + (factor === 'pos' ? " on" : "")} onClick={() => setFactor('pos')}>Position</button>
         </div>
-      </div>
-      <div className="cr">
-        <div className="cl">Period</div>
+        <div className="cl" style={{marginLeft:8}}>Period</div>
         <div className="tg">
           <button className={"tb" + (period === 'last5' ? " on" : "")} onClick={() => setPeriod('last5')}>Last 5</button>
           <button className={"tb" + (period === 'last10' ? " on" : "")} onClick={() => setPeriod('last10')}>Last 10</button>
@@ -1366,7 +1451,7 @@ function App() {
           </div>
         </div>
       </div>
-      <div className="ctr">
+      <div className="ctr" style={{background:`linear-gradient(90deg, ${hS.bg||'var(--bg0)'}22, var(--bg0) 30%, var(--bg0) 70%, ${aS.bg||'var(--bg0)'}22)`}}>
         <div className="gml">
           {D.logos[g.home] && <img src={D.logos[g.home]} className="team-logo-lg" alt="" />}
           <span style={{background:hS.bg,color:hS.txt,padding:'4px 12px',borderRadius:6,fontWeight:800,fontSize:16}}>{ABBREV[g.home]}</span>
@@ -1417,7 +1502,7 @@ function App() {
         {mainTab === 'team' ? (
           <TeamStats game={g} oddsData={oddsData}/>
         ) : (
-          <PlayerStats game={g}/>
+          <PlayerStats game={g} oddsData={oddsData}/>
         )}
       </div>
       <div className="ftr">RSG AFL Dashboard - Round 3, 2026</div>
