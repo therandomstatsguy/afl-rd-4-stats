@@ -1547,8 +1547,9 @@ function PlayerStats({game, oddsData}) {
 function App() {
   const [selGame,setSelGame]=useState(0);
   const [mainTab, setMainTab] = useState('player');
-  const games=D.orGames;
-  const g=games[selGame];
+  const games=useMemo(()=>D.orGames.filter(gm=>D.odds[`${gm.home}|${gm.away}`]),[]);
+  if (!games.length) return <div style={{color:'var(--t2)',padding:40,textAlign:'center'}}>No games with odds available</div>;
+  const g=games[Math.min(selGame, games.length-1)];
   const oddsKey=`${g.home}|${g.away}`;
   const oddsData=D.odds[oddsKey]||null;
   const hS=TEAM_STYLES[g.home]||{};
