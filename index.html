@@ -64,9 +64,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg0);color:var(--
 .streak-info{flex:1;padding:8px 10px;display:flex;flex-direction:column;justify-content:center}
 .alt-slider-wrap{margin-top:8px;padding:8px 14px;background:var(--bg1);border:1px solid var(--brd);border-radius:8px}
 .alt-slider-title{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
-.alt-slider-track{position:relative;height:6px;background:rgba(255,255,255,.08);border-radius:3px;margin:12px 0 8px;cursor:pointer}
+.alt-slider-track{position:relative;height:8px;background:rgba(255,255,255,.08);border-radius:4px;margin:10px 0 4px;cursor:pointer;padding:8px 0;background-clip:content-box}
 .alt-slider-fill{position:absolute;top:0;left:0;height:100%;background:var(--acc);border-radius:3px;transition:width .2s}
-.alt-slider-thumb{position:absolute;top:50%;width:14px;height:14px;background:var(--acc);border-radius:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 0 6px rgba(0,212,160,.4);transition:left .1s}
+.alt-slider-thumb{position:absolute;top:50%;width:16px;height:16px;background:var(--acc);border-radius:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 0 8px rgba(0,212,160,.5);transition:left .15s;z-index:2}
 .alt-slider-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t3)}
 .alt-slider-odds{display:flex;justify-content:space-between;margin-top:4px;font-size:10px}
 .alt-slider-odds .alt-fav{color:var(--acc);font-weight:700}
@@ -234,37 +234,51 @@ function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyl
     const ci = items.findIndex(it => it.point === currentVal);
     return ci >= 0 ? ci : Math.floor(items.length / 2);
   });
+  const dragging = React.useRef(false);
+  const trackRef = React.useRef(null);
   if (!items.length) return null;
   const item = items[idx] || items[0];
   const pct = items.length > 1 ? (idx / (items.length - 1)) * 100 : 50;
   const isSpread = label === 'spread';
   const favAbbr = ABBREV[favTeam] || favTeam;
   const undAbbr = ABBREV[undTeam] || undTeam;
-  // For spread: determine who is fav at this specific line
-  // The fav side price = covering the spread, und side = not covering
   const leftPrice = isSpread ? item.favPrice : item.overPrice;
   const leftBookie = isSpread ? item.favBookie : item.overBookie;
   const rightPrice = isSpread ? item.undPrice : item.underPrice;
   const rightBookie = isSpread ? item.undBookie : item.underBookie;
-  const handleClick = (e) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+  const updateFromX = (clientX) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
     const newIdx = Math.round((x / rect.width) * (items.length - 1));
     const clamped = Math.max(0, Math.min(items.length - 1, newIdx));
     setIdx(clamped);
     if (onChange) onChange(items[clamped].point);
   };
+  const handleDown = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    dragging.current = true;
+    updateFromX(e.touches ? e.touches[0].clientX : e.clientX);
+    const onMove = (ev) => { if (dragging.current) updateFromX(ev.touches ? ev.touches[0].clientX : ev.clientX); };
+    const onUp = () => { dragging.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend', onUp);
+  };
   return (
     <div className="alt-slider-wrap" onClick={e => e.stopPropagation()}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-        {leftPrice != null ? <span className="alt-fav">{isSpread ? '' : 'O '}${leftPrice?.toFixed(2)} <span style={{fontSize:8,color:'var(--t3)'}}>({leftBookie})</span></span> : <span/>}
-        <span style={{fontSize:13,fontWeight:800,color:'var(--acc)'}}>{isSpread ? `${favAbbr} -${item.point}` : item.point}</span>
-        {rightPrice != null ? <span className="alt-und">{isSpread ? '' : 'U '}${rightPrice?.toFixed(2)} <span style={{fontSize:8,color:'var(--t3)'}}>({rightBookie})</span></span> : <span/>}
+        {leftPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">{isSpread ? '' : 'O '}${leftPrice?.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({leftBookie})</span></span> : <span/>}
+        <span style={{fontSize:13,fontWeight:800,color:'var(--acc)'}}>{isSpread ? `${favAbbr} ${item.point > 0 ? '-' : '+'}${Math.abs(item.point)}` : item.point}</span>
+        {rightPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">{isSpread ? '' : 'U '}${rightPrice?.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({rightBookie})</span></span> : <span/>}
       </div>
-      <div className="alt-slider-track" onClick={handleClick}>
+      <div className="alt-slider-track" ref={trackRef} onMouseDown={handleDown} onTouchStart={handleDown} style={{height:8,marginTop:10}}>
         <div className="alt-slider-fill" style={{width: pct + '%'}} />
         <div className="alt-slider-thumb" style={{left: pct + '%'}} />
+      </div>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:8,color:'var(--t3)',marginTop:2}}>
+        <span>{items[0].point}</span>
+        <span>{items[items.length-1].point}</span>
       </div>
     </div>
   );
@@ -937,14 +951,9 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
       rows.sort((a,b) => (b.ds||0) - (a.ds||0));
       return rows;
     }, isPosMode: true},
-    {id: 'h2h', name: `vs ${oppAbbr}`, fn: g => g.filter(x => x.opponent === oppTeam)},
+    {id: 'h2h', name: `vs ${(() => {const nn = {'Adelaide':'Crows','Brisbane':'Lions','Carlton':'Blues','Collingwood':'Magpies','Essendon':'Bombers','Fremantle':'Dockers','Geelong':'Cats','Gold Coast':'Suns','Greater Western Sydney':'Giants','Hawthorn':'Hawks','Melbourne':'Demons','North Melbourne':'Kangaroos','Port Adelaide':'Power','Richmond':'Tigers','St Kilda':'Saints','Sydney':'Swans','West Coast':'Eagles','Western Bulldogs':'Bulldogs'}; return nn[oppTeam]||oppAbbr;})()}`, fn: g => g.filter(x => x.opponent === oppTeam)},
     {id: 'venue', name: `at ${game.venueShort || game.venue}`, fn: g => game.venueShort ? g.filter(x => x.venue === game.venueShort) : []},
     {id: 'aspos', name: `as ${fullPos}`, fn: g => position ? g.filter(x => x.position === position) : g},
-    {id: 'favund', name: game.fav === pl.team ? 'As Underdog' : 'As Favourite', fn: g => {
-      const plFav = game.fav === pl.team;
-      return g.filter(x => plFav ? x.opponent !== oppTeam : true);
-    }},
-    {id: 'bottom9', name: `vs Bottom 9`, fn: g => g},
     {id: 'daynight', name: isNightGame ? 'Night Games' : 'Day Games', fn: g => g.filter(x => {
       const t = parseTime(x.time);
       return isNightGame ? t >= 17*60 : t < 17*60;
@@ -968,7 +977,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
       return (
         <div className="modal-gl-wrap" style={{background:'#000'}}>
           <table className="gl-tbl" style={{background:'#000'}}>
-            <thead><tr><th>Team</th><th>Player</th><th>Rd</th>{isGoals?<><th>G</th><th>B</th><th>I50</th></>:<><th>D</th></>}<th>TOG%</th></tr></thead>
+            <thead><tr><th>Team</th><th>Player</th><th>Rd</th>{isGoals?<><th>G</th><th>B</th><th>I50</th></>:<><th>D</th><th>Ki</th><th>HB</th></>}<th>TOG%</th></tr></thead>
             <tbody>
               {games.map((op, j) => {
                 const gVal = isGoals ? op.g : op.d;
@@ -987,6 +996,8 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
                       <td>{op.m}</td>
                     </>:<>
                       <td style={{color: hit ? 'var(--acc)' : '#ef4444', fontWeight:700}}>{op.d}</td>
+                      <td>{op.kicks!=null?op.kicks:'-'}</td>
+                      <td>{op.handballs!=null?op.handballs:'-'}</td>
                     </>}
                     <td>{op.p}%</td>
                   </tr>
@@ -1000,7 +1011,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
     return (
       <div className="modal-gl-wrap" style={{background:'#000'}}>
         <table className="gl-tbl" style={{background:'#000'}}>
-          <thead><tr><th>Yr</th><th>Rd</th><th>Opp</th><th>TOG%</th>{is2026&&<th>Pos</th>}{isGoals?<><th>G</th><th>B</th><th>I50</th></>:<><th>D</th></>}</tr></thead>
+          <thead><tr><th>Yr</th><th>Rd</th><th>Opp</th><th>TOG%</th>{is2026&&<th>Pos</th>}{isGoals?<><th>G</th><th>B</th><th>I50</th></>:<><th>D</th><th>Ki</th><th>HB</th></>}</tr></thead>
           <tbody>
             {games.map((g, j) => {
               const val = isGoals ? g.goals : g.disposals;
@@ -1019,6 +1030,8 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
                     <td>{g.marks_i50||0}</td>
                   </>:<>
                     <td style={{color:hit?'var(--acc)':'#ef4444',fontWeight:700}}>{g.disposals}</td>
+                    <td>{g.kicks!=null?g.kicks:'-'}</td>
+                    <td>{g.handballs!=null?g.handballs:'-'}</td>
                   </>}
                 </tr>
               );
@@ -1109,9 +1122,18 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
             const count = games.length;
             if (f.id !== 'all' && count === 0) return null;
             const hitsCount = f.isPosMode ? games.filter(op => (subTab==='goals'?op.g:op.d) >= milestone).length : games.filter(g => (subTab==='goals'?g.goals:g.disposals) >= milestone).length;
-            const desc = subTab === 'disposals' && !f.isPosMode && count > 0
-              ? `avg. ${(games.reduce((s,g) => s + g.disposals, 0) / count).toFixed(1)} disposals in ${count} games`
-              : `${hitsCount} ${statLabel} in ${count} ${f.isPosMode?'players':'games'}`;
+            const shortStat = subTab === 'goals' ? 'goals' : 'disp';
+            let desc;
+            if (f.isPosMode && count > 0) {
+              const avg = subTab === 'goals'
+                ? (games.reduce((s,op) => s + op.g, 0) / count).toFixed(1)
+                : (games.reduce((s,op) => s + op.d, 0) / count).toFixed(1);
+              desc = `avg ${avg} ${shortStat} in ${count} games`;
+            } else if (subTab === 'disposals' && count > 0) {
+              desc = `avg. ${(games.reduce((s,g) => s + g.disposals, 0) / count).toFixed(1)} disp in ${count} games`;
+            } else {
+              desc = `${hitsCount} ${shortStat} in ${count} games`;
+            }
             return (
               <div key={f.id} className={"modal-factor"+(isOpen?" open":"")} style={{background:srBg(sr)}} onClick={() => setOpenFactor(isOpen ? null : f.id)}>
                 <div className="modal-factor-hdr">
@@ -1479,18 +1501,13 @@ function App() {
             <div className="logo-t">RSG</div>
             <div className="logo-s">AFL Round 3, 2026</div>
           </div>
-          <div className="gsel">
+          <div className="gsel" style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:6,maxWidth:600}}>
             {games.map((gm,i)=>(
-              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                <div style={{fontSize:9,color:'var(--t3)',whiteSpace:'nowrap'}}>{gm.day} {gm.time}</div>
-                <button className={"gbtn"+(selGame===i?" on":"")} onClick={()=>setSelGame(i)} style={{display:'flex',alignItems:'center',gap:4}}>
-                  {D.logos[gm.home] && <img src={D.logos[gm.home]} className="team-logo-sm" alt="" />}
-                  <span className="tbadge" style={{background:TEAM_STYLES[gm.home]?.bg,color:TEAM_STYLES[gm.home]?.txt}}>{ABBREV[gm.home]}</span>
-                  {' v '}
-                  <span className="tbadge" style={{background:TEAM_STYLES[gm.away]?.bg,color:TEAM_STYLES[gm.away]?.txt}}>{ABBREV[gm.away]}</span>
-                  {D.logos[gm.away] && <img src={D.logos[gm.away]} className="team-logo-sm" alt="" />}
-                </button>
-              </div>
+              <button key={i} className={"gbtn"+(selGame===i?" on":"")} onClick={()=>setSelGame(i)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 8px',fontSize:10}}>
+                {D.logos[gm.home] && <img src={D.logos[gm.home]} className="team-logo-sm" alt="" />}
+                <span style={{margin:'0 2px',color:'var(--t3)',fontSize:9}}>v</span>
+                {D.logos[gm.away] && <img src={D.logos[gm.away]} className="team-logo-sm" alt="" />}
+              </button>
             ))}
           </div>
         </div>
