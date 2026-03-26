@@ -18,8 +18,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg0);color:var(--
 .hdr-in{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 .logo-t{font-size:28px;font-weight:900;letter-spacing:2px;background:linear-gradient(135deg,#00ffaa,#00d4a0,#0088ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .logo-s{font-size:10px;color:var(--t3);letter-spacing:1px;text-transform:uppercase}
-.gsel{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
-.gbtn{background:var(--bg2);border:1px solid var(--brd);color:var(--t2);padding:5px 10px;border-radius:7px;cursor:pointer;font-size:10px;font-weight:500;transition:all .2s;font-family:inherit;white-space:nowrap}
+.gsel{display:grid;gap:6px;justify-content:center;width:100%}
+.gbtn{background:var(--bg2);border:1px solid var(--brd);color:var(--t2);padding:8px 4px;border-radius:7px;cursor:pointer;font-size:10px;font-weight:500;transition:all .2s;font-family:inherit;white-space:nowrap;min-height:44px}
 .gbtn:hover{border-color:var(--acc2);color:var(--t1)}.gbtn.on{background:linear-gradient(135deg,rgba(0,212,160,.15),rgba(0,136,255,.1));border-color:var(--acc);color:var(--accB);box-shadow:0 0 10px rgba(0,212,160,.2)}
 .ctr{max-width:1400px;margin:0 auto;padding:18px 20px}
 .sec{margin-bottom:24px}
@@ -32,13 +32,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg0);color:var(--
 .cr{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .cl{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:1px}
 .ts-grid{display:flex;flex-direction:column;gap:4px}
-.ts-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:5px 10px;border-radius:8px;border:1px solid rgba(30,42,54,.4);transition:background .2s}
-.ts-val{font-size:14px;font-weight:700;min-width:50px}
-.ts-val.l{text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:8px}
-.ts-val.r{text-align:left;display:flex;align-items:center;gap:8px}
-.ts-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;text-align:center;min-width:120px;white-space:nowrap}
-.ts-bar{height:6px;border-radius:3px;transition:width .4s ease}
-.ts-bar-wrap{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.05);overflow:hidden;min-width:40px}
+.ts-row{display:grid;grid-template-columns:1fr auto 1fr;gap:4px;align-items:center;padding:5px 8px;border-radius:8px;border:1px solid rgba(30,42,54,.4);transition:background .2s}
+.ts-val{font-size:13px;font-weight:700;min-width:36px}
+.ts-val.l{text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.ts-val.r{text-align:left;display:flex;align-items:center;gap:4px}
+.ts-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px;font-weight:600;text-align:center;min-width:0;white-space:nowrap;padding:0 2px}
+.ts-bar{height:5px;border-radius:3px;transition:width .4s ease}
+.ts-bar-wrap{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.05);overflow:hidden;min-width:20px}
 .ts-bar-wrap.l{display:flex;justify-content:flex-end}
 .ts-hdr{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:4px 10px;margin-bottom:4px}
 .ts-tn{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
@@ -213,14 +213,17 @@ function computeTeamStats(team, games, line, ptsLine, qMode, teamIsFav) {
     if(m>0){wins++;if(m>=40)w40++;else w139++;}
     else if(m<0){losses++;if(Math.abs(m)>=40)l40++;else l139++;}
     else draws++;
-    if(line>0){
-      if(teamIsFav){if(m>line)lineCov++;}else{if(m>-line)lineCov++;}
+    if(line!==0){
+      const absLine=Math.abs(line);
+      const lineFlipped=line<0; // negative = und is now fav
+      const isFavAtLine=lineFlipped?!teamIsFav:teamIsFav;
+      if(isFavAtLine){if(m>absLine)lineCov++;}else{if(m>-absLine)lineCov++;}
     }
     if(ptsLine>0&&s.total>ptsLine)ptsOver++;
   });
   return {
     games:n,winPct:Math.round(wins/n*100),drawPct:Math.round(draws/n*100),
-    linePct:line>0?Math.round(lineCov/n*100):null,
+    linePct:line!==0?Math.round(lineCov/n*100):null,
     ptsPct:ptsLine>0?Math.round(ptsOver/n*100):null,
     w40:Math.round(w40/n*100),w139:Math.round(w139/n*100),
     l139:Math.round(l139/n*100),l40:Math.round(l40/n*100),
@@ -246,6 +249,10 @@ function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyl
   const leftBookie = isSpread ? item.favBookie : item.overBookie;
   const rightPrice = isSpread ? item.undPrice : item.underPrice;
   const rightBookie = isSpread ? item.undBookie : item.underBookie;
+  // For spread: point > 0 means fav giving pts, point < 0 means und giving pts (flipped)
+  const pt = item.point;
+  const favLine = isSpread ? (pt >= 0 ? -pt : Math.abs(pt)) : null;
+  const undLine = isSpread ? (pt >= 0 ? pt : -Math.abs(pt)) : null;
   const updateFromX = (clientX) => {
     const rect = trackRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -265,20 +272,34 @@ function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyl
     document.addEventListener('touchmove', onMove, {passive:false});
     document.addEventListener('touchend', onUp);
   };
+  const fmtLine = (v) => v > 0 ? `+${v}` : v < 0 ? `${v}` : '0';
   return (
     <div className="alt-slider-wrap" onClick={e => e.stopPropagation()}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-        {leftPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">{isSpread ? '' : 'O '}${leftPrice?.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({leftBookie})</span></span> : <span/>}
-        <span style={{fontSize:13,fontWeight:800,color:'var(--acc)'}}>{isSpread ? `${favAbbr} ${item.point > 0 ? '-' : '+'}${Math.abs(item.point)}` : item.point}</span>
-        {rightPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">{isSpread ? '' : 'U '}${rightPrice?.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({rightBookie})</span></span> : <span/>}
-      </div>
+      {isSpread ? (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
+          <div style={{textAlign:'left',flex:1}}>
+            <div style={{fontSize:11,fontWeight:700,color:favStyle?.txt||'var(--t1)'}}>{favAbbr} {fmtLine(favLine)}</div>
+            {leftPrice != null && <div style={{fontSize:10}}><span className="od-val">${leftPrice.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)'}}>({leftBookie})</span></div>}
+          </div>
+          <div style={{textAlign:'right',flex:1}}>
+            <div style={{fontSize:11,fontWeight:700,color:undStyle?.txt||'var(--t1)'}}>{undAbbr} {fmtLine(undLine)}</div>
+            {rightPrice != null && <div style={{fontSize:10}}><span className="od-val">${rightPrice.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)'}}>({rightBookie})</span></div>}
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+          {leftPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">O ${leftPrice.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({leftBookie})</span></span> : <span/>}
+          <span style={{fontSize:13,fontWeight:800,color:'var(--acc)'}}>{pt}</span>
+          {rightPrice != null ? <span className="od-item" style={{fontSize:11}}><span className="od-val">U ${rightPrice.toFixed(2)}</span> <span style={{fontSize:8,color:'var(--t3)',marginLeft:2}}>({rightBookie})</span></span> : <span/>}
+        </div>
+      )}
       <div className="alt-slider-track" ref={trackRef} onMouseDown={handleDown} onTouchStart={handleDown} style={{height:8,marginTop:10}}>
         <div className="alt-slider-fill" style={{width: pct + '%'}} />
         <div className="alt-slider-thumb" style={{left: pct + '%'}} />
       </div>
       <div style={{display:'flex',justifyContent:'space-between',fontSize:8,color:'var(--t3)',marginTop:2}}>
-        <span>{items[0].point}</span>
-        <span>{items[items.length-1].point}</span>
+        <span>{isSpread ? `${favAbbr} -${items[0].point}` : items[0].point}</span>
+        <span>{isSpread ? (items[items.length-1].point < 0 ? `${undAbbr} -${Math.abs(items[items.length-1].point)}` : `${undAbbr} +${items[items.length-1].point}`) : items[items.length-1].point}</span>
       </div>
     </div>
   );
@@ -320,8 +341,11 @@ function GLRow({g, team, line, ptsLine, qMode, teamIsFav}) {
   const res=m>0?'W':m<0?'L':'D';
   const resC=res==='W'?'var(--acc)':res==='L'?'#ef4444':'#eab308';
   let mC='var(--t1)';
-  if(line>0){
-    const cov=teamIsFav?(m>line):(m>-line);
+  if(line!==0){
+    const absLine=Math.abs(line);
+    const lineFlipped=line<0;
+    const isFavAtLine=lineFlipped?!teamIsFav:teamIsFav;
+    const cov=isFavAtLine?(m>absLine):(m>-absLine);
     mC=cov?'var(--acc)':'#ef4444';
   }
   const pC=(ptsLine>0&&s.total>ptsLine)?'var(--acc)':(ptsLine>0?'#ef4444':'var(--t1)');
@@ -512,8 +536,14 @@ function Streaks({game, oddsData, mainTab}) {
     });
 
     tItems.sort((a,b)=>b.streak-a.streak);
-    pItems.sort((a,b)=>b.streak-a.streak);
-    return {teamStreaks: tItems, playerStreaks: pItems};
+    // Filter player streaks: best odds must be >= $1.40
+    const filteredP = pItems.filter(s => {
+      if (!s.odds || !s.odds.length) return false;
+      const best = s.odds.reduce((a,b) => b.price > a.price ? b : a, s.odds[0]);
+      return best.price >= 1.40;
+    });
+    filteredP.sort((a,b)=>b.streak-a.streak);
+    return {teamStreaks: tItems, playerStreaks: filteredP};
   },[game,oddsData]);
 
   const togExp = (idx) => setExpSet(prev => {const n={...prev}; if(n[idx]) delete n[idx]; else n[idx]=true; return n;});
@@ -782,17 +812,17 @@ function TeamStats({game, oddsData}) {
           <div className="ts-grid">
             <StatRow label="Games" valA={statsA.games} valB={statsB.games} isCount={true}/>
             <StatRow label="Win %" valA={statsA.winPct} valB={statsB.winPct} suffix="%"/>
-            {line>0&&<>
+            {line!==0&&<>
               <div style={{cursor:'pointer'}} onClick={()=>setShowLineSlider(!showLineSlider)}>
-                <StatRow label={`Line Cover % (${line})`} valA={statsA.linePct} valB={statsB.linePct} suffix="%"/>
+                <StatRow label={`Line ${Math.abs(line)}`} valA={statsA.linePct} valB={statsB.linePct} suffix="%"/>
               </div>
               {showLineSlider && oddsData && oddsData.altSpreads && oddsData.altSpreads.length > 0 && (
-                <OddsSlider items={oddsData.altSpreads} label="spread" favTeam={oddsData.fav} undTeam={oddsData.und} homeTeam={game.home} favStyle={hS} undStyle={aS} currentVal={baseOdds.line} onChange={(v) => setOverrideLine(v)} />
+                <OddsSlider items={oddsData.altSpreads} label="spread" favTeam={oddsData.fav} undTeam={oddsData.und} homeTeam={game.home} favStyle={TEAM_STYLES[oddsData.fav]||{}} undStyle={TEAM_STYLES[oddsData.und]||{}} currentVal={baseOdds.line} onChange={(v) => setOverrideLine(v)} />
               )}
             </>}
             {ptsLine>0&&<>
               <div style={{cursor:'pointer'}} onClick={()=>setShowPtsSlider(!showPtsSlider)}>
-                <StatRow label={`Points Over % (${ptsLine})`} valA={statsA.ptsPct} valB={statsB.ptsPct} suffix="%"/>
+                <StatRow label={`Pts O/U ${ptsLine}`} valA={statsA.ptsPct} valB={statsB.ptsPct} suffix="%"/>
               </div>
               {showPtsSlider && oddsData && oddsData.altTotals && oddsData.altTotals.length > 0 && (
                 <OddsSlider items={oddsData.altTotals} label="total" favTeam={oddsData.fav} undTeam={oddsData.und} homeTeam={game.home} favStyle={hS} undStyle={aS} currentVal={baseOdds.ptsLine} onChange={(v) => setOverridePts(v)} />
@@ -806,8 +836,8 @@ function TeamStats({game, oddsData}) {
                 <StatRow label="40+ Losses" valA={statsA.l40} valB={statsB.l40} suffix="%" inverse={true}/>
               </>
             )}
-            <StatRow label="Pts Scored/Gm" valA={statsA.ppg} valB={statsB.ppg} isCount={true}/>
-            <StatRow label="Pts Conceded/Gm" valA={statsA.pcpg} valB={statsB.pcpg} isCount={true} inverse={true}/>
+            <StatRow label="Pts For/Gm" valA={statsA.ppg} valB={statsB.ppg} isCount={true}/>
+            <StatRow label="Pts Agst/Gm" valA={statsA.pcpg} valB={statsB.pcpg} isCount={true} inverse={true}/>
           </div>
           <div style={{marginTop:12}}>
             <div className="stit" style={{fontSize:11,marginBottom:8}}><span>Game Log</span></div>
@@ -939,7 +969,7 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
 
   const factors = [
     {id: 'all', name: 'All Games', fn: g => g},
-    {id: 'pos', name: `${fullPos} vs ${oppAbbr}`, fn: () => {
+    {id: 'pos', name: `${fullPos} vs ${(() => {const nn = {'Adelaide':'Crows','Brisbane':'Lions','Carlton':'Blues','Collingwood':'Magpies','Essendon':'Bombers','Fremantle':'Dockers','Geelong':'Cats','Gold Coast':'Suns','Greater Western Sydney':'Giants','Hawthorn':'Hawks','Melbourne':'Demons','North Melbourne':'Kangaroos','Port Adelaide':'Power','Richmond':'Tigers','St Kilda':'Saints','Sydney':'Swans','West Coast':'Eagles','Western Bulldogs':'Bulldogs'}; return nn[oppTeam]||oppAbbr;})()}`, fn: () => {
       const rows = [];
       Object.keys(D.posLookup).forEach(key => {
         const parts = key.split('|');
@@ -1110,25 +1140,36 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
         <div style={{padding:'0 0 18px'}}>
           {factors.map(f => {
             const games = f.isPosMode ? f.fn() : getFilteredGames(f.fn);
-            const sr = f.isPosMode ? (() => {
-              if (!games.length) return 0;
-              const hits = games.filter(op => {
-                const val = subTab === 'goals' ? op.g : op.d;
-                return val >= milestone;
-              }).length;
-              return Math.round(hits / games.length * 100);
-            })() : getSR(games);
             const isOpen = openFactor === f.id;
-            const count = games.length;
-            if (f.id !== 'all' && count === 0) return null;
-            const hitsCount = f.isPosMode ? games.filter(op => (subTab==='goals'?op.g:op.d) >= milestone).length : games.filter(g => (subTab==='goals'?g.goals:g.disposals) >= milestone).length;
+            // For position mode, group by round to count games (1 round = 1 game)
+            let sr, count, hitsCount, posRoundData;
             const shortStat = subTab === 'goals' ? 'goals' : 'disp';
+            if (f.isPosMode) {
+              const byRound = {};
+              games.forEach(op => {
+                const rk = op.round || 'unknown';
+                if (!byRound[rk]) byRound[rk] = {goals:0, disp:0, players:[]};
+                byRound[rk].goals += (op.g||0);
+                byRound[rk].disp += (op.d||0);
+                byRound[rk].players.push(op);
+              });
+              posRoundData = Object.entries(byRound);
+              count = posRoundData.length;
+              const totalStat = subTab === 'goals' ? posRoundData.reduce((s,r)=>s+r[1].goals,0) : posRoundData.reduce((s,r)=>s+r[1].disp,0);
+              hitsCount = totalStat;
+              // SR: percentage of rounds where total stat >= milestone
+              const roundHits = posRoundData.filter(r => (subTab==='goals'?r[1].goals:r[1].disp) >= milestone).length;
+              sr = count > 0 ? Math.round(roundHits / count * 100) : 0;
+            } else {
+              sr = getSR(games);
+              count = games.length;
+              hitsCount = games.filter(g => (subTab==='goals'?g.goals:g.disposals) >= milestone).length;
+            }
+            if (f.id !== 'all' && count === 0) return null;
             let desc;
             if (f.isPosMode && count > 0) {
-              const avg = subTab === 'goals'
-                ? (games.reduce((s,op) => s + op.g, 0) / count).toFixed(1)
-                : (games.reduce((s,op) => s + op.d, 0) / count).toFixed(1);
-              desc = `avg ${avg} ${shortStat} in ${count} games`;
+              const totalStat = subTab === 'goals' ? posRoundData.reduce((s,r)=>s+r[1].goals,0) : posRoundData.reduce((s,r)=>s+r[1].disp,0);
+              desc = `${totalStat} ${shortStat} in ${count} games`;
             } else if (subTab === 'disposals' && count > 0) {
               desc = `avg. ${(games.reduce((s,g) => s + g.disposals, 0) / count).toFixed(1)} disp in ${count} games`;
             } else {
@@ -1501,12 +1542,15 @@ function App() {
             <div className="logo-t">RSG</div>
             <div className="logo-s">AFL Round 3, 2026</div>
           </div>
-          <div className="gsel" style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:6,maxWidth:600}}>
+          <div className="gsel" style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:6,width:'100%',maxWidth:600,margin:'0 auto'}}>
             {games.map((gm,i)=>(
-              <button key={i} className={"gbtn"+(selGame===i?" on":"")} onClick={()=>setSelGame(i)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 8px',fontSize:10}}>
-                {D.logos[gm.home] && <img src={D.logos[gm.home]} className="team-logo-sm" alt="" />}
-                <span style={{margin:'0 2px',color:'var(--t3)',fontSize:9}}>v</span>
-                {D.logos[gm.away] && <img src={D.logos[gm.away]} className="team-logo-sm" alt="" />}
+              <button key={i} className={"gbtn"+(selGame===i?" on":"")} onClick={()=>setSelGame(i)} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,padding:'8px 4px',fontSize:10,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:4}}>
+                  {D.logos[gm.home] && <img src={D.logos[gm.home]} style={{width:18,height:18}} alt="" />}
+                  <span style={{color:'var(--t3)',fontSize:9}}>v</span>
+                  {D.logos[gm.away] && <img src={D.logos[gm.away]} style={{width:18,height:18}} alt="" />}
+                </div>
+                {gm.time && <div style={{fontSize:8,color:'var(--t3)',marginTop:1}}>{gm.time}</div>}
               </button>
             ))}
           </div>
