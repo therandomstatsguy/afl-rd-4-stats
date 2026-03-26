@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RSG AFL Dashboard - Round 3, 2026</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script>window.onerror=function(m,s,l,c,e){document.getElementById('root').innerHTML='<pre style="color:red;padding:20px;font-size:14px">ERROR: '+m+'\nLine: '+l+':'+c+'\n'+(e&&e.stack||'')+'</pre>';}</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 :root{--bg0:#070b10;--bg1:#0d1117;--bg2:#141b24;--bg3:#1a2332;--acc:#00d4a0;--acc2:#00a67d;--accB:#00ffaa;--grn:#22c55e;--ylw:#eab308;--red:#ef4444;--t1:#e8eaed;--t2:#8b95a5;--t3:#5c6878;--brd:#1e2a36;--brdA:rgba(0,212,160,0.3)}
@@ -1429,7 +1430,21 @@ function App() {
   );
 }
 
-ReactDOM.render(<App/>, document.getElementById('root'));
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('React Error:', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('pre', {style:{color:'red',padding:20,fontSize:14}},
+        'REACT ERROR: ' + (this.state.error && this.state.error.message) + '\n' +
+        (this.state.error && this.state.error.stack || ''));
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.render(<ErrorBoundary><App/></ErrorBoundary>, document.getElementById('root'));
 </script>
 </body>
 </html>
