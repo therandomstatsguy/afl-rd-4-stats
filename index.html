@@ -1189,6 +1189,9 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
               }
             } else if (subTab === 'disposals' && count > 0) {
               desc = `avg. ${(games.reduce((s,g) => s + g.disposals, 0) / count).toFixed(1)} disp in ${count} games`;
+            } else if (subTab === 'goals' && count > 0) {
+              const totalGoals = games.reduce((s,g) => s + (g.goals||0), 0);
+              desc = `${totalGoals} goals in ${count} games`;
             } else {
               desc = `${hitsCount} ${shortStat} in ${count} games`;
             }
