@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RSG AFL Dashboard - Round 2, 2026</title>
+<title>RSG AFL Dashboard - Round 3, 2026</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -107,6 +107,37 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg0);color:var(--
 .field-player-card{background:var(--bg2);border:1px solid var(--brd);border-radius:6px;padding:6px;font-size:9px}
 .field-player-name{font-weight:700;color:var(--t1);margin-bottom:2px}
 .field-player-stat{font-size:8px;color:var(--acc)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px}
+.modal-box{background:var(--bg0);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:560px;position:relative;overflow:hidden;margin:20px auto}
+.modal-close{position:sticky;top:0;z-index:210;display:flex;justify-content:flex-end;padding:10px 14px 0}
+.modal-close-btn{background:var(--acc);color:#000;border:none;padding:5px 14px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.5px}
+.modal-close-btn:hover{background:var(--accB)}
+.modal-hdr{padding:14px 18px;display:flex;gap:14px;align-items:center}
+.modal-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid var(--acc);flex-shrink:0}
+.modal-photo-ph{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex-shrink:0}
+.modal-info{flex:1;min-width:0}
+.modal-name{font-size:18px;font-weight:800;color:var(--t1)}
+.modal-meta{font-size:11px;color:var(--t2);margin-top:2px}
+.modal-odds{padding:8px 18px;display:flex;gap:8px;flex-wrap:wrap}
+.modal-odd-card{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:6px 10px;flex:1;min-width:80px;text-align:center}
+.modal-odd-price{font-size:16px;font-weight:800;color:var(--acc)}
+.modal-odd-bk{font-size:8px;color:var(--t3);margin-top:1px}
+.modal-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px;padding:8px 18px}
+.modal-stat{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:8px 6px;text-align:center}
+.modal-stat-val{font-size:16px;font-weight:800;color:var(--t1)}
+.modal-stat-lbl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.modal-filters{padding:8px 18px;position:sticky;top:34px;z-index:205}
+.modal-filters-inner{padding:10px;border-radius:10px}
+.modal-factor{background:var(--bg2);border:1px solid var(--brd);border-radius:10px;margin:4px 18px;overflow:hidden;transition:all .2s}
+.modal-factor:hover{border-color:var(--acc2)}
+.modal-factor.open{border-color:var(--acc)}
+.modal-factor-hdr{padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.modal-factor-name{font-size:11px;font-weight:700;color:var(--t1)}
+.modal-factor-sr{font-size:14px;font-weight:800}
+.modal-factor-sub{font-size:8px;color:var(--t3)}
+.modal-factor-body{padding:0 12px 10px}
+.modal-gl-wrap{max-height:172px;overflow-y:auto;border:1px solid var(--brd);border-radius:8px}
+@media(max-width:600px){.modal-box{margin:10px;border-radius:12px}.modal-hdr{padding:10px 14px}.modal-stats{grid-template-columns:repeat(3,1fr);padding:6px 14px}.modal-filters{padding:6px 14px}.modal-factor{margin:4px 14px}}
 </style>
 </head>
 <body>
@@ -132,6 +163,7 @@ const D = {
   posLookup: POS_LOOKUP,
   photos: PLAYER_PHOTOS,
   logos: TEAM_LOGOS,
+  posRankings: POS_RANKINGS,
 };
 
 function getScores(g, team, qMode) {
@@ -328,7 +360,7 @@ function Streaks({game, oddsData, mainTab}) {
 
       goalMs.forEach(({m,l,ok}) => {
         const oddsObj = D.playerOdds[p.name]?.[ok]?.[m];
-        if (!oddsObj) return;
+        if (!oddsObj || !oddsObj.length) return;
         const buildLast10 = (gArr, streakLen, ms, st) => {
           const showLen = Math.max(10, streakLen);
           const l10 = gArr.slice(0,showLen);
@@ -366,7 +398,7 @@ function Streaks({game, oddsData, mainTab}) {
       });
       dispMs.forEach(({m,l,ok}) => {
         const oddsObj = D.playerOdds[p.name]?.[ok]?.[m];
-        if (!oddsObj) return;
+        if (!oddsObj || !oddsObj.length) return;
         const buildLast10d = (gArr, streakLen) => {
           const showLen = Math.max(10, streakLen);
           const l10 = gArr.slice(0,showLen);
@@ -432,7 +464,7 @@ function Streaks({game, oddsData, mainTab}) {
         </div>
         <div style={{fontSize:11,color:'var(--t2)',marginTop:3}}>
           {s.desc}
-          {isPlayer && s.odds && <span style={{color:'var(--acc)',marginLeft:6,fontSize:10}}>${s.odds.price.toFixed(2)} ({s.odds.bookie})</span>}
+          {isPlayer && s.odds && s.odds[0] && <span style={{color:'var(--acc)',marginLeft:6,fontSize:10}}>${s.odds[0].price.toFixed(2)} ({s.odds[0].bookie})</span>}
         </div>
         {isE && !isPlayer && s.games && (
           <div onClick={e=>e.stopPropagation()} style={{marginTop:8,maxHeight:s.games.length>10?240:undefined,overflowY:s.games.length>10?'auto':'visible'}}>
@@ -700,12 +732,285 @@ function TeamStats({game, oddsData}) {
 }
 
 
+function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose}) {
+  const factorMap = {'all':'all','h2h':'h2h','venue':'venue','pos':'pos','wet':'dry'};
+  const [subTab, setSubTab] = useState(initSubTab || 'goals');
+  const [milestone, setMilestone] = useState(initMilestone || 1);
+  const [period, setPeriod] = useState('last10');
+  const [openFactor, setOpenFactor] = useState(factorMap[initFactor] || 'all');
+  const goalMs = [1,2,3,4];
+  const dispMs = [15,20,25,30];
+  const activeMs = subTab === 'goals' ? goalMs : dispMs;
+
+  React.useEffect(() => {
+    setMilestone(subTab === 'goals' ? 1 : 15);
+  }, [subTab]);
+
+  React.useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const pd = D.playerData[pl.name];
+  if (!pd) return null;
+  const ts = TEAM_STYLES[pl.team] || {};
+  const oppTeam = pl.team === game.home ? game.away : game.home;
+  const position = pd.position || pl.pos_short || '';
+  const allGames = pd.games || [];
+  const photoUrl = D.photos[pl.name];
+
+  // Top 3 odds for this milestone (now stored as arrays)
+  const oddsKey = subTab === 'goals' ? 'goals_over' : 'disposals_over';
+  const poData = D.playerOdds[pl.name];
+  const allOdds = (poData && poData[oddsKey] && poData[oddsKey][milestone]) || [];
+
+  // Scorecard stats
+  const g2026 = allGames.filter(g => g.year === 2026);
+  const totalGames = g2026.length;
+  const avgPct = totalGames ? Math.round(g2026.reduce((s,g) => s + (g.pct_played||0), 0) / totalGames) : 0;
+  const totalGoals = g2026.reduce((s,g) => s + g.goals, 0);
+  const totalBehinds = g2026.reduce((s,g) => s + (g.behinds||0), 0);
+  const avgDisp = totalGames ? (g2026.reduce((s,g) => s + g.disposals, 0) / totalGames).toFixed(1) : '0.0';
+
+  // Position defence rankings
+  const posRankKey = `${oppTeam}|${position}`;
+  const posRank = D.posRankings[posRankKey] || {};
+  const rankColor = (r) => !r ? 'var(--t3)' : r <= 6 ? 'var(--acc)' : r <= 12 ? '#eab308' : '#ef4444';
+
+  // Build factor sections
+  const getFilteredGames = (filterFn) => {
+    let games = filterFn(allGames);
+    if (period === 'last5') games = games.slice(0, 5);
+    else if (period === 'last10') games = games.slice(0, 10);
+    else if (period === '2026') games = games.filter(g => g.year === 2026);
+    return games;
+  };
+
+  const getSR = (games) => {
+    if (!games.length) return 0;
+    const hits = games.filter(g => {
+      const val = subTab === 'goals' ? g.goals : g.disposals;
+      return val >= milestone;
+    }).length;
+    return Math.round(hits / games.length * 100);
+  };
+
+  const parseTime = (t) => {
+    if (!t) return 0;
+    const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!m) return 0;
+    let h = parseInt(m[1]);
+    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + parseInt(m[2]);
+  };
+
+  const gameTimeMin = parseTime(game.time);
+  const isNightGame = gameTimeMin >= 17 * 60;
+  const gameDay = game.day || '';
+  const gameRound = game.rd || '';
+
+  const factors = [
+    {id: 'all', name: 'All Games', fn: g => g},
+    {id: 'h2h', name: `vs ${ABBREV[oppTeam] || oppTeam}`, fn: g => g.filter(x => x.opponent === oppTeam)},
+    {id: 'venue', name: `At ${game.venueShort || game.venue}`, fn: g => game.venueShort ? g.filter(x => x.venue === game.venueShort) : []},
+    {id: 'pos', name: `${position} vs ${ABBREV[oppTeam] || oppTeam}`, fn: () => {
+      // Special: use POS_LOOKUP data
+      const rows = [];
+      Object.keys(D.posLookup).forEach(key => {
+        const parts = key.split('|');
+        if (parts[1] === oppTeam && parts[3] === position) {
+          D.posLookup[key].forEach(op => rows.push({...op, round: parts[2]}));
+        }
+      });
+      rows.sort((a,b) => (b.ds||0) - (a.ds||0));
+      return rows;
+    }, isPosMode: true},
+    {id: 'daynight', name: isNightGame ? 'Night Games' : 'Day Games', fn: g => g.filter(x => {
+      const t = parseTime(x.time);
+      return isNightGame ? t >= 17*60 : t < 17*60;
+    })},
+    {id: 'dry', name: 'Dry Games', fn: g => g.filter(x => x.conditions === 'DRY')},
+    {id: 'wet', name: 'Wet Games', fn: g => g.filter(x => x.conditions === 'WET')},
+    {id: 'dow', name: `${gameDay} Games`, fn: g => g.filter(x => x.dow === gameDay)},
+    {id: 'round', name: `Round ${game.rd || '?'}`, fn: g => g.filter(x => x.round === `Round ${game.rd}` || x.round === game.rd)},
+  ];
+
+  const renderGameLog = (games, isPosMode) => {
+    if (!games.length) return <div style={{fontSize:10,color:'var(--t3)',padding:8}}>No games found</div>;
+    if (isPosMode) {
+      return (
+        <div className="modal-gl-wrap">
+          <table className="gl-tbl">
+            <thead><tr><th>Player</th><th>Rd</th><th>G</th><th>B</th><th>D</th><th>MI50</th><th>%</th></tr></thead>
+            <tbody>
+              {games.map((op, j) => {
+                const gVal = subTab === 'goals' ? op.g : op.d;
+                const hit = gVal >= milestone;
+                return (
+                  <tr key={j}>
+                    <td style={{fontWeight:600,color:'var(--t1)',fontSize:10}}>{op.n}</td>
+                    <td>{op.round || '-'}</td>
+                    <td style={{color: (subTab==='goals' && hit) ? 'var(--acc)' : (subTab==='goals' && !hit) ? '#ef4444' : 'var(--t2)', fontWeight:700}}>{op.g}</td>
+                    <td>{op.b}</td>
+                    <td style={{color: (subTab==='disposals' && hit) ? 'var(--acc)' : (subTab==='disposals' && !hit) ? '#ef4444' : 'var(--t2)', fontWeight:700}}>{op.d}</td>
+                    <td>{op.m}</td>
+                    <td>{op.p}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    return (
+      <div className="modal-gl-wrap">
+        <table className="gl-tbl">
+          <thead><tr><th>Yr</th><th>Rd</th><th>Opp</th><th>Ven</th><th>{subTab==='goals'?'G':'D'}</th><th>%</th></tr></thead>
+          <tbody>
+            {games.map((g, j) => {
+              const val = subTab === 'goals' ? g.goals : g.disposals;
+              const hit = val >= milestone;
+              const oppTS = TEAM_STYLES[g.opponent] || {};
+              return (
+                <tr key={j}>
+                  <td>{g.year}</td>
+                  <td>{g.round}</td>
+                  <td><span style={{background:oppTS.bg,color:oppTS.txt,padding:'1px 4px',borderRadius:3,fontSize:9}}>{ABBREV[g.opponent]||g.opponent?.substring(0,4)}</span></td>
+                  <td style={{fontSize:9,color:'var(--t2)'}}>{g.venue||''}</td>
+                  <td style={{color:hit?'var(--acc)':'#ef4444',fontWeight:700}}>{val}</td>
+                  <td>{g.pct_played||0}%</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-close">
+          <button className="modal-close-btn" onClick={onClose}>CLOSE &times;</button>
+        </div>
+
+        <div className="modal-hdr">
+          {photoUrl ? <img src={photoUrl} className="modal-photo" alt="" /> : <div className="modal-photo-ph" style={{background:ts.bg,color:ts.txt}}>#{pl.number}</div>}
+          <div className="modal-info">
+            <div className="modal-name">{pl.name}</div>
+            <div className="modal-meta">#{pl.number} &middot; {pl.team} &middot; {pd.full_position || pl.position || pd.position || pl.pos_short}</div>
+          </div>
+        </div>
+
+        {allOdds.length > 0 && (
+          <div className="modal-odds">
+            {allOdds.map((o, i) => (
+              <div key={i} className="modal-odd-card">
+                <div className="modal-odd-price">${o.price.toFixed(2)}</div>
+                <div className="modal-odd-bk">{o.bookie} &middot; {milestone}+ {subTab}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="modal-stats">
+          <div className="modal-stat"><div className="modal-stat-val">{totalGames}</div><div className="modal-stat-lbl">Games</div></div>
+          <div className="modal-stat"><div className="modal-stat-val">{avgPct}%</div><div className="modal-stat-lbl">Avg Time</div></div>
+          <div className="modal-stat"><div className="modal-stat-val">{totalGoals}</div><div className="modal-stat-lbl">Goals</div></div>
+          <div className="modal-stat"><div className="modal-stat-val">{totalBehinds}</div><div className="modal-stat-lbl">Behinds</div></div>
+          <div className="modal-stat"><div className="modal-stat-val">{avgDisp}</div><div className="modal-stat-lbl">Avg Disp</div></div>
+          {position && posRank.gr && (
+            <div className="modal-stat" style={{borderColor:rankColor(posRank.gr)}}>
+              <div className="modal-stat-val" style={{color:rankColor(posRank.gr)}}>{posRank.gr}<span style={{fontSize:9,color:'var(--t3)'}}>/18</span></div>
+              <div className="modal-stat-lbl">Opp Gls Rank</div>
+            </div>
+          )}
+          {position && posRank.dr && (
+            <div className="modal-stat" style={{borderColor:rankColor(posRank.dr)}}>
+              <div className="modal-stat-val" style={{color:rankColor(posRank.dr)}}>{posRank.dr}<span style={{fontSize:9,color:'var(--t3)'}}>/18</span></div>
+              <div className="modal-stat-lbl">Opp Disp Rank</div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-filters">
+          <div className="modal-filters-inner" style={{background:`linear-gradient(90deg, ${ts.bg || 'var(--bg2)'}44, transparent)`}}>
+            <div className="cr" style={{marginBottom:6}}>
+              <div className="cl">Stat</div>
+              <div className="tg">
+                <button className={"tb"+(subTab==='goals'?" on":"")} onClick={()=>setSubTab('goals')}>Goals</button>
+                <button className={"tb"+(subTab==='disposals'?" on":"")} onClick={()=>setSubTab('disposals')}>Disposals</button>
+              </div>
+            </div>
+            <div className="cr" style={{marginBottom:6}}>
+              <div className="cl">{subTab === 'goals' ? 'Goals' : 'Disposals'}</div>
+              <div className="tg">
+                {activeMs.map(m => <button key={m} className={"tb"+(milestone===m?" on":"")} onClick={()=>setMilestone(m)}>{m}+</button>)}
+              </div>
+            </div>
+            <div className="cr" style={{marginBottom:0}}>
+              <div className="cl">Period</div>
+              <div className="tg">
+                <button className={"tb"+(period==='last5'?" on":"")} onClick={()=>setPeriod('last5')}>Last 5</button>
+                <button className={"tb"+(period==='last10'?" on":"")} onClick={()=>setPeriod('last10')}>Last 10</button>
+                <button className={"tb"+(period==='2026'?" on":"")} onClick={()=>setPeriod('2026')}>2026</button>
+                <button className={"tb"+(period==='all'?" on":"")} onClick={()=>setPeriod('all')}>All</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{padding:'8px 0 18px'}}>
+          {factors.map(f => {
+            const games = f.isPosMode ? f.fn() : getFilteredGames(f.fn);
+            const sr = f.isPosMode ? (() => {
+              if (!games.length) return 0;
+              const hits = games.filter(op => {
+                const val = subTab === 'goals' ? op.g : op.d;
+                return val >= milestone;
+              }).length;
+              return Math.round(hits / games.length * 100);
+            })() : getSR(games);
+            const srColor = sr >= 70 ? 'var(--acc)' : sr >= 40 ? '#eab308' : '#ef4444';
+            const isOpen = openFactor === f.id;
+            const count = games.length;
+            if (f.id !== 'all' && count === 0) return null;
+            return (
+              <div key={f.id} className={"modal-factor"+(isOpen?" open":"")}>
+                <div className="modal-factor-hdr" onClick={() => setOpenFactor(isOpen ? null : f.id)}>
+                  <div>
+                    <div className="modal-factor-name">{f.name}</div>
+                    <div className="modal-factor-sub">{count} {f.isPosMode ? 'players' : 'games'}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div className="modal-factor-sr" style={{color: srColor}}>{sr}%</div>
+                    <div className="modal-factor-sub">strike rate</div>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="modal-factor-body">
+                    {renderGameLog(games, f.isPosMode)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlayerStats({game}) {
   const [subTab, setSubTab] = useState('goals');
   const [factor, setFactor] = useState('all');
   const [period, setPeriod] = useState('last10');
   const [milestone, setMilestone] = useState(1);
   const [exp, setExp] = useState(null);
+  const [modalPlayer, setModalPlayer] = useState(null);
 
   const goalMilestones = [1, 2, 3, 4];
   const dispMilestones = [15, 20, 25, 30];
@@ -826,12 +1131,12 @@ function PlayerStats({game}) {
     const pos = D.playerData[pl.name]?.position || pl.pos_short;
 
     return (
-      <div className={'pc' + (isR ? ' rt' : '') + (isE ? ' exp' : '')} onClick={() => tog(k)}>
+      <div className={'pc' + (isR ? ' rt' : '') + (isE ? ' exp' : '')} onClick={() => setModalPlayer(pl)}>
         <div className="pi">
           <div className="pn-num" style={{background: teamStyles.bg, color: teamStyles.txt}}>{D.photos[pl.name] ? <img src={D.photos[pl.name]} alt="" /> : pl.number}</div>
           <div style={{flex:1,minWidth:0}}>
             <div className="pname">{pl.name}</div>
-            <div className="ppos"><span style={{background:'rgba(0,212,160,0.2)',color:'var(--acc)',padding:'2px 6px',borderRadius:4,fontSize:8,fontWeight:700,textTransform:'uppercase',marginRight:6}}>{pl.pos_short}</span>{oddsObj ? <span style={{color:'var(--acc)',fontSize:9}}>${oddsObj.price.toFixed(2)} <span style={{opacity:.7}}>({oddsObj.bookie})</span></span> : ''}</div>
+            <div className="ppos"><span style={{background:'rgba(0,212,160,0.2)',color:'var(--acc)',padding:'2px 6px',borderRadius:4,fontSize:8,fontWeight:700,textTransform:'uppercase',marginRight:6}}>{pl.pos_short}</span>{oddsObj && oddsObj[0] ? <span style={{color:'var(--acc)',fontSize:9}}>${oddsObj[0].price.toFixed(2)} <span style={{opacity:.7}}>({oddsObj[0].bookie})</span></span> : ''}</div>
           </div>
           <div className="psr">
             <div className="psr-val" style={{color: srColor}}>{sr}%</div>
@@ -1018,24 +1323,15 @@ function PlayerStats({game}) {
           <div className="mhv">VS</div>
           <div className="mht" style={{background:aS.bg,color:aS.txt,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{ABBREV[game.away]}{D.logos[game.away] && <img src={D.logos[game.away]} className="team-logo" alt="" />}</div>
         </div>
-        {matchups.map((m, i) => {
-          const kA = m.a ? 'A_' + m.a.name : null;
-          const kB = m.b ? 'B_' + m.b.name : null;
-          const sA = exp === kA && kA;
-          const sB = exp === kB && kB;
-          return (
-            <React.Fragment key={i}>
-              <div className="mr">
-                {renderPC(m.a, 'left', hS)}
-                <div className="mp"><span className="mpb">{i+1}</span></div>
-                {renderPC(m.b, 'right', aS)}
-              </div>
-              {sA && m.a && renderPD(m.a, hS)}
-              {sB && m.b && renderPD(m.b, aS)}
-            </React.Fragment>
-          );
-        })}
+        {matchups.map((m, i) => (
+          <div key={i} className="mr">
+            {renderPC(m.a, 'left', hS)}
+            <div className="mp"><span className="mpb">{i+1}</span></div>
+            {renderPC(m.b, 'right', aS)}
+          </div>
+        ))}
       </div>
+      {modalPlayer && <PlayerModal pl={modalPlayer} game={game} initSubTab={subTab} initMilestone={milestone} initFactor={factor} onClose={() => setModalPlayer(null)} />}
     </div>
   );
 }
@@ -1056,7 +1352,7 @@ function App() {
         <div className="hdr-in">
           <div>
             <div className="logo-t">RSG</div>
-            <div className="logo-s">AFL Round 2, 2026</div>
+            <div className="logo-s">AFL Round 3, 2026</div>
           </div>
           <div className="gsel">
             {games.map((gm,i)=>(
@@ -1128,7 +1424,7 @@ function App() {
           <PlayerStats game={g}/>
         )}
       </div>
-      <div className="ftr">RSG AFL Dashboard - Round 2, 2026</div>
+      <div className="ftr">RSG AFL Dashboard - Round 3, 2026</div>
     </div>
   );
 }
