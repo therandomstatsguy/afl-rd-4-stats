@@ -1167,9 +1167,9 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
               count = posRoundData.length;
               const totalStat = subTab === 'goals' ? posRoundData.reduce((s,r)=>s+r[1].goals,0) : posRoundData.reduce((s,r)=>s+r[1].disp,0);
               hitsCount = totalStat;
-              // SR: percentage of rounds where total stat >= milestone
-              const roundHits = posRoundData.filter(r => (subTab==='goals'?r[1].goals:r[1].disp) >= milestone).length;
-              sr = count > 0 ? Math.round(roundHits / count * 100) : 0;
+              // SR: how many individual players hit the milestone / total players
+              const playerHits = games.filter(op => (subTab==='goals'?op.g:op.d) >= milestone).length;
+              sr = games.length > 0 ? Math.round(playerHits / games.length * 100) : 0;
             } else {
               sr = getSR(games);
               count = games.length;
