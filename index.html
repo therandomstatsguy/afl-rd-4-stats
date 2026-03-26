@@ -232,16 +232,21 @@ function computeTeamStats(team, games, line, ptsLine, qMode, teamIsFav) {
 }
 
 function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyle, currentVal, onChange}) {
-  const [idx, setIdx] = useState(() => {
+  const midIdx = useMemo(() => {
     if (!items.length) return 0;
     const ci = items.findIndex(it => it.point === currentVal);
     return ci >= 0 ? ci : Math.floor(items.length / 2);
-  });
+  }, [items, currentVal]);
+  const [idx, setIdx] = useState(midIdx);
   const dragging = React.useRef(false);
   const trackRef = React.useRef(null);
   if (!items.length) return null;
   const item = items[idx] || items[0];
-  const pct = items.length > 1 ? (idx / (items.length - 1)) * 100 : 50;
+  // Map so that midIdx (actual game line) sits at 50%
+  let pct;
+  if (items.length <= 1) { pct = 50; }
+  else if (idx <= midIdx) { pct = midIdx > 0 ? (idx / midIdx) * 50 : 0; }
+  else { pct = 50 + ((idx - midIdx) / (items.length - 1 - midIdx)) * 50; }
   const isSpread = label === 'spread';
   const favAbbr = ABBREV[favTeam] || favTeam;
   const undAbbr = ABBREV[undTeam] || undTeam;
@@ -256,7 +261,11 @@ function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyl
   const updateFromX = (clientX) => {
     const rect = trackRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
-    const newIdx = Math.round((x / rect.width) * (items.length - 1));
+    const clickPct = x / rect.width * 100;
+    // Reverse the midpoint mapping: pct < 50 maps to 0..midIdx, pct >= 50 maps to midIdx..last
+    let newIdx;
+    if (clickPct <= 50) { newIdx = midIdx > 0 ? Math.round((clickPct / 50) * midIdx) : 0; }
+    else { newIdx = Math.round(midIdx + ((clickPct - 50) / 50) * (items.length - 1 - midIdx)); }
     const clamped = Math.max(0, Math.min(items.length - 1, newIdx));
     setIdx(clamped);
     if (onChange) onChange(items[clamped].point);
@@ -294,6 +303,7 @@ function OddsSlider({items, label, favTeam, undTeam, homeTeam, favStyle, undStyl
         </div>
       )}
       <div className="alt-slider-track" ref={trackRef} onMouseDown={handleDown} onTouchStart={handleDown} style={{height:8,marginTop:10}}>
+        <div style={{position:'absolute',left:'50%',top:'-3px',bottom:'-3px',width:2,background:'var(--t3)',opacity:0.5,transform:'translateX(-50%)',zIndex:1,borderRadius:1}} />
         <div className="alt-slider-fill" style={{width: pct + '%'}} />
         <div className="alt-slider-thumb" style={{left: pct + '%'}} />
       </div>
@@ -1168,8 +1178,15 @@ function PlayerModal({pl, game, initSubTab, initMilestone, initFactor, onClose})
             if (f.id !== 'all' && count === 0) return null;
             let desc;
             if (f.isPosMode && count > 0) {
-              const totalStat = subTab === 'goals' ? posRoundData.reduce((s,r)=>s+r[1].goals,0) : posRoundData.reduce((s,r)=>s+r[1].disp,0);
-              desc = `${totalStat} ${shortStat} in ${count} games`;
+              if (subTab === 'goals') {
+                const totalGoals = posRoundData.reduce((s,r)=>s+r[1].goals,0);
+                desc = `${totalGoals} goals in ${count} games`;
+              } else {
+                const totalDisp = posRoundData.reduce((s,r)=>s+r[1].disp,0);
+                const totalPlayers = posRoundData.reduce((s,r)=>s+r[1].players.length,0);
+                const avgPerPlayer = totalPlayers > 0 ? (totalDisp / totalPlayers).toFixed(1) : '0.0';
+                desc = `avg ${avgPerPlayer} disp in ${count} games`;
+              }
             } else if (subTab === 'disposals' && count > 0) {
               desc = `avg. ${(games.reduce((s,g) => s + g.disposals, 0) / count).toFixed(1)} disp in ${count} games`;
             } else {
@@ -1550,7 +1567,7 @@ function App() {
                   <span style={{color:'var(--t3)',fontSize:9}}>v</span>
                   {D.logos[gm.away] && <img src={D.logos[gm.away]} style={{width:18,height:18}} alt="" />}
                 </div>
-                {gm.time && <div style={{fontSize:8,color:'var(--t3)',marginTop:1}}>{gm.time}</div>}
+                {(gm.day || gm.time) && <div style={{fontSize:8,color:'var(--acc)',marginTop:1,fontWeight:600}}>{gm.day ? gm.day.substring(0,3) : ''}{gm.day && gm.time ? ' ' : ''}{gm.time || ''}</div>}
               </button>
             ))}
           </div>
